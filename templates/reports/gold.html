@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Altın Raporu - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Altın Bozumu Raporu{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-warning shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-gem fs-1 text-warning"></i>
+                <h5 class="mt-2">Toplam Bozulan Altın</h5>
+                <h2 class="text-warning"><span class="sensitive">{{ "{:,.2f}".format(total_grams) }} gr</span></h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-warning shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-cash fs-1 text-warning"></i>
+                <h5 class="mt-2">Toplam Elde Edilen TL</h5>
+                <h2 class="text-warning"><span class="sensitive">{{ "{:,.0f} ₺".format(total_tl) }}</span></h2>
+                {% if total_grams > 0 %}
+                <small class="text-muted">Ortalama: <span class="sensitive">{{ "{:,.2f} ₺/gr".format(total_tl / total_grams) if total_grams > 0 else '0' }}</span></small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Açıklama</th>
+                    <th class="text-end">Gram</th>
+                    <th class="text-end">Tutar</th>
+                    <th class="text-end">Gram Fiyatı</th>
+                    <th>Not</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in gold_transactions %}
+                <tr>
+                    <td>{{ t.date.strftime('%d.%m.%Y') }}</td>
+                    <td>{{ t.description }}</td>
+                    <td class="text-end"><span class="sensitive">{{ "{:,.2f} gr".format(t.gold_grams or 0) }}</span></td>
+                    <td class="text-end text-warning fw-bold"><span class="sensitive">{{ "{:,.0f} ₺".format(t.total_amount) }}</span></td>
+                    <td class="text-end">
+                        {% if t.gold_grams and t.gold_grams > 0 %}
+                        <span class="sensitive">{{ "{:,.0f} ₺/gr".format(t.total_amount / t.gold_grams) }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{{ t.note[:60] if t.note else '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Henüz altın bozumu kaydı yok.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

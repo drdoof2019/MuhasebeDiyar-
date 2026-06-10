@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Ana Sayfa - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Ana Sayfa{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary h-100 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-arrow-down-circle fs-1 text-danger"></i>
+                <h5 class="card-title mt-2">Bu Ay Gider</h5>
+                <h3 class="text-danger"><span class="sensitive">{{ "{:,.0f}".format(month_expenses) }} ₺</span></h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success h-100 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-arrow-up-circle fs-1 text-success"></i>
+                <h5 class="card-title mt-2">Bu Ay Gelir</h5>
+                <h3 class="text-success"><span class="sensitive">{{ "{:,.0f}".format(month_income) }} ₺</span></h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info h-100 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-cash-stack fs-1 text-info"></i>
+                <h5 class="card-title mt-2">Bu Ay Net</h5>
+                <h3 class="text-{{ 'success' if (month_income - month_expenses) >= 0 else 'danger' }}">
+                    <span class="sensitive">{{ "{:+,.0f}".format(month_income - month_expenses) }} ₺</span>
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <small class="text-muted">Yıllık Gider</small>
+                <h5 class="text-danger"><span class="sensitive">{{ "{:,.0f}".format(year_expenses) }} ₺</span></h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <small class="text-muted">Yıllık Gelir</small>
+                <h5 class="text-success"><span class="sensitive">{{ "{:,.0f}".format(year_income) }} ₺</span></h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <small class="text-muted">Toplam Gider</small>
+                <h5 class="text-danger"><span class="sensitive">{{ "{:,.0f}".format(all_expenses) }} ₺</span></h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <small class="text-muted">Kasa Bakiyesi</small>
+                <h5 class="text-{{ 'success' if cash_balance >= 0 else 'danger' }}">
+                    <span class="sensitive">{{ "{:+,.0f}".format(cash_balance) }} ₺</span>
+                </h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if month_gold > 0 %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-warning shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-gem fs-1 text-warning"></i>
+                <h5 class="card-title mt-2">Bu Ay Altın Bozumu</h5>
+                <h3 class="text-warning"><span class="sensitive">{{ "{:,.0f}".format(month_gold) }} ₺</span></h3>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Son İşlemler</h5>
+        {% if user_permissions.can_add_transaction %}
+        <a href="{{ url_for('transactions.add') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i> Yeni İşlem
+        </a>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Açıklama</th>
+                    <th>Tür</th>
+                    <th>Kategori</th>
+                    <th>Ödeyen</th>
+                    <th class="text-end">Tutar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in recent %}
+                <tr>
+                    <td>{{ t.date.strftime('%d.%m.%Y') }}</td>
+                    <td>{{ t.description[:50] }}{% if t.description|length > 50 %}...{% endif %}</td>
+                    <td>
+                        {% if t.entry_type == 'expense' %}
+                            <span class="badge bg-danger">Gider</span>
+                        {% elif t.entry_type == 'income' %}
+                            <span class="badge bg-success">Gelir</span>
+                        {% elif t.entry_type == 'gold_conversion' %}
+                            <span class="badge bg-warning text-dark">Altın Bozumu</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Not</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.category.name if t.category else '-' }}</td>
+                    <td>
+                        {% for p in t.payers[:2] %}
+                            <span class="sensitive">{{ p.financier.name }}</span>{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                        {% if t.payers|length > 2 %}...{% endif %}
+                    </td>
+                    <td class="text-end fw-bold">
+                        {% if t.entry_type == 'income' %}
+                            <span class="text-success"><span class="sensitive">{{ "{:+,.0f}".format(t.total_amount) }} ₺</span></span>
+                        {% elif t.entry_type == 'expense' %}
+                            <span class="text-danger"><span class="sensitive">{{ "{:+,.0f}".format(-t.total_amount) }} ₺</span></span>
+                        {% else %}
+                            <span class="sensitive">{{ "{:,.0f}".format(t.total_amount) }} ₺</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Henüz işlem kaydı yok.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

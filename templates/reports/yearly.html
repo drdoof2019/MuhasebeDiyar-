@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Yıllık Rapor - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Yıllık Rapor{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <canvas id="yearlyChart" height="80"></canvas>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Yıl</th>
+                    <th class="text-end">Toplam Gider</th>
+                    <th class="text-end">Toplam Gelir</th>
+                    <th class="text-end">Altın Bozumu</th>
+                    <th class="text-end">Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for y in yearly_data %}
+                {% set net = (y.income or 0) - (y.expenses or 0) %}
+                <tr>
+                    <td>{{ y.year }}</td>
+                    <td class="text-end text-danger"><span class="sensitive">{{ "{:,.0f} ₺".format(y.expenses or 0) }}</span></td>
+                    <td class="text-end text-success"><span class="sensitive">{{ "{:,.0f} ₺".format(y.income or 0) }}</span></td>
+                    <td class="text-end text-warning"><span class="sensitive">{{ "{:,.0f} ₺".format(y.gold or 0) }}</span></td>
+                    <td class="text-end fw-bold {{ 'text-success' if net >= 0 else 'text-danger' }}">
+                        <span class="sensitive">{{ "{:+,.0f} ₺".format(net) }}</span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted py-4">Kayıt bulunamadı.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ctx = document.getElementById('yearlyChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: [{% for y in yearly_data %}'{{ y.year }}',{% endfor %}],
+        datasets: [{
+            label: 'Gider',
+            data: [{% for y in yearly_data %}{{ y.expenses or 0 }},{% endfor %}],
+            backgroundColor: 'rgba(220, 53, 69, 0.6)',
+            borderColor: '#dc3545',
+            borderWidth: 1
+        }, {
+            label: 'Gelir',
+            data: [{% for y in yearly_data %}{{ y.income or 0 }},{% endfor %}],
+            backgroundColor: 'rgba(25, 135, 84, 0.6)',
+            borderColor: '#198754',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: { display: true, text: 'Yıllara Göre Gelir-Gider', font: { size: 16 } }
+        },
+        scales: {
+            y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('tr-TR') + ' ₺' } }
+        }
+    }
+});
+</script>
+{% endblock %}

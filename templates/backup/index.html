@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Yedekleme - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Veritabanı Yedekleme{% endblock %}
+
+{% block content %}
+{% if needs_backup %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Hatırlatma:</strong> Son 7 gün içinde yedek alınmamış. Lütfen aşağıdan yedek alın ve flash belleğe kopyalayın.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-download me-2"></i> Yedek İndir</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Veritabanının bir kopyasını bilgisayarınıza indirin ve flash belleğe kopyalayın.</p>
+                <a href="{{ url_for('backup.download') }}" class="btn btn-primary">
+                    <i class="bi bi-download me-2"></i> Yedeği İndir (.db)
+                </a>
+                <small class="d-block mt-2 text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    İndirdiğiniz dosyayı flash belleğe kopyalayarak güvenceye alın.
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-upload me-2"></i> Yedekten Geri Yükle</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Daha önce aldığınız bir yedek dosyasını (.db) yükleyerek veritabanını geri yükleyin.</p>
+                <form method="POST" action="{{ url_for('backup.restore') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <input type="file" class="form-control" name="backup_file" accept=".db" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning" onclick="return confirm('Mevcut veritabanı bu yedek ile değiştirilecek. Devam etmek istediğinize emin misiniz? (Mevcut veritabanının bir kopyası otomatik olarak saklanacaktır.)')">
+                        <i class="bi bi-upload me-2"></i> Geri Yükle
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if backups %}
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-white">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i> Geçmiş Yedekler</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Dosya Adı</th>
+                    <th>Boyut</th>
+                    <th>Tarih</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in backups %}
+                <tr>
+                    <td>{{ b.name }}</td>
+                    <td>{{ "{:,.0f} KB".format(b.size / 1024) }}</td>
+                    <td>{{ b.date.strftime('%d.%m.%Y %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="alert alert-info mt-4">
+    <h6><i class="bi bi-lightbulb me-2"></i> Önerilen Yedekleme Stratejisi</h6>
+    <ul class="mb-0">
+        <li>Her hafta bir yedek alın ve flash belleğe kopyalayın</li>
+        <li>İki farklı flash bellek kullanarak dönüşümlü yedekleyin</li>
+        <li>Flash belleği dükkandan ayrı, güvenli bir yerde saklayın</li>
+        <li>Bilgisayar arızası durumunda yedek dosyanız güvende olacaktır</li>
+    </ul>
+</div>
+{% endblock %}

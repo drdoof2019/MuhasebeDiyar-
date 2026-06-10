@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Kullanıcılar - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Kullanıcı Yönetimi{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-bold">Tüm Kullanıcılar</span>
+        <a href="{{ url_for('users.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-person-plus me-1"></i> Yeni Kullanıcı
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Kullanıcı Adı</th>
+                    <th>Ad Soyad</th>
+                    <th>Yetki</th>
+                    <th>Durum</th>
+                    <th>Oluşturulma</th>
+                    <th class="text-center">İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.username }}</td>
+                    <td>{{ u.full_name }}</td>
+                    <td>
+                        {% if u.is_admin %}
+                            <span class="badge bg-danger">Yönetici</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Kullanıcı</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                            <span class="badge bg-success">Aktif</span>
+                        {% else %}
+                            <span class="badge bg-danger">Pasif</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '-' }}</td>
+                    <td class="text-center">
+                        <a href="{{ url_for('users.edit', id=u.id) }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-pencil me-1"></i> Düzenle
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Kayıt bulunamadı.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

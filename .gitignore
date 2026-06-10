@@ -1,0 +1,31 @@
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Distribution
+*.egg-info/
+dist/
+build/
+
+# Instance data (database, backups, secrets)
+instance/muhasebe.db
+instance/backups/
+instance/.last_backup
+instance/pre_restore_*.db
+instance/secret_key.txt
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Kullanıcı Düzenle - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Kullanıcı Düzenle: {{ user.full_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Kullanıcı Adı</label>
+                        <input type="text" class="form-control" value="{{ user.username }}" disabled>
+                        <small class="text-muted">Kullanıcı adı değiştirilemez.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label">Ad Soyad</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" value="{{ user.full_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Yeni Şifre (Boş bırakılırsa değişmez)</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password_confirm" class="form-label">Yeni Şifre (Tekrar)</label>
+                        <input type="password" class="form-control" id="password_confirm" name="password_confirm">
+                    </div>
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {{ 'checked' if user.is_active else '' }}>
+                            <label class="form-check-label" for="is_active">Aktif Hesap</label>
+                        </div>
+                    </div>
+
+                    {% if not user.is_admin %}
+                    <h6 class="mb-3">Yetkiler</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="can_view_transactions" name="can_view_transactions"
+                                       {{ 'checked' if user.permissions and user.permissions.can_view_transactions else '' }}>
+                                <label class="form-check-label" for="can_view_transactions">İşlemleri Görüntüleme</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="can_add_transaction" name="can_add_transaction"
+                                       {{ 'checked' if user.permissions and user.permissions.can_add_transaction else '' }}>
+                                <label class="form-check-label" for="can_add_transaction">İşlem Ekleme</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="can_edit_transaction" name="can_edit_transaction"
+                                       {{ 'checked' if user.permissions and user.permissions.can_edit_transaction else '' }}>
+                                <label class="form-check-label" for="can_edit_transaction">İşlem Düzenleme</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="can_delete_transaction" name="can_delete_transaction"
+                                       {{ 'checked' if user.permissions and user.permissions.can_delete_transaction else '' }}>
+                                <label class="form-check-label" for="can_delete_transaction">İşlem Silme</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="can_view_reports" name="can_view_reports"
+                                       {{ 'checked' if user.permissions and user.permissions.can_view_reports else '' }}>
+                                <label class="form-check-label" for="can_view_reports">Raporları Görüntüleme</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="can_manage_users" name="can_manage_users"
+                                       {{ 'checked' if user.permissions and user.permissions.can_manage_users else '' }}>
+                                <label class="form-check-label" for="can_manage_users">Kullanıcı Yönetimi</label>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">Yönetici kullanıcısının tüm yetkileri vardır.</div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Güncelle</button>
+                        <a href="{{ url_for('users.list') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle me-1"></i> İptal</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

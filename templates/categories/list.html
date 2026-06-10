@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Kategoriler - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Kategori Yönetimi{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Add/Edit Form -->
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0" id="formTitle">Yeni Kategori Ekle</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="categoryForm">
+                    <input type="hidden" name="action" value="add" id="formAction">
+                    <input type="hidden" name="id" value="" id="formId">
+                    <div class="mb-3">
+                        <label class="form-label">Kategori Adı</label>
+                        <input type="text" class="form-control" name="name" id="formName" required
+                               placeholder="Kategori adı...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Türü</label>
+                        <select class="form-select" name="type" id="formType">
+                            <option value="expense">Gider</option>
+                            <option value="income">Gelir</option>
+                            <option value="both">İkisi de</option>
+                        </select>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1" id="formSubmit">
+                            <i class="bi bi-plus-circle me-1"></i> Ekle
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary d-none" id="cancelEdit"
+                                onclick="resetForm()">
+                            İptal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category List -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <span class="fw-bold">{{ categories|length }} kategori</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Kategori</th>
+                            <th>Tür</th>
+                            <th class="text-center">İşlem Sayısı</th>
+                            <th class="text-end">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in categories %}
+                        <tr>
+                            <td>{{ c.name }}</td>
+                            <td>
+                                {% if c.type == 'expense' %}
+                                    <span class="badge bg-danger">Gider</span>
+                                {% elif c.type == 'income' %}
+                                    <span class="badge bg-success">Gelir</span>
+                                {% else %}
+                                    <span class="badge bg-primary">İkisi de</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ counts[c.id] }}</td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="editCategory({{ c.id }}, '{{ c.name|e }}', '{{ c.type }}')"
+                                            title="Düzenle">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    {% if counts[c.id] == 0 %}
+                                    <button type="button" class="btn btn-outline-danger"
+                                            onclick="deleteCategory({{ c.id }}, '{{ c.name|e }}')"
+                                            title="Sil">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-outline-danger" disabled
+                                            title="Bu kategoriye bağlı işlem var">
+                                        <i class="bi bi-lock"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-4">Kategori bulunamadı.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden delete form -->
+<form id="deleteForm" method="POST" style="display:none;">
+    <input type="hidden" name="action" value="delete">
+    <input type="hidden" name="id" id="deleteId">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editCategory(id, name, type) {
+    document.getElementById('formAction').value = 'edit';
+    document.getElementById('formId').value = id;
+    document.getElementById('formName').value = name;
+    document.getElementById('formType').value = type;
+    document.getElementById('formSubmit').innerHTML = '<i class="bi bi-check-circle me-1"></i> Güncelle';
+    document.getElementById('formTitle').textContent = 'Kategori Düzenle';
+    document.getElementById('cancelEdit').classList.remove('d-none');
+    document.getElementById('formName').focus();
+}
+
+function resetForm() {
+    document.getElementById('formAction').value = 'add';
+    document.getElementById('formId').value = '';
+    document.getElementById('formName').value = '';
+    document.getElementById('formType').value = 'expense';
+    document.getElementById('formSubmit').innerHTML = '<i class="bi bi-plus-circle me-1"></i> Ekle';
+    document.getElementById('formTitle').textContent = 'Yeni Kategori Ekle';
+    document.getElementById('cancelEdit').classList.add('d-none');
+}
+
+function deleteCategory(id, name) {
+    if (confirm('"' + name + '" kategorisini silmek istediğinize emin misiniz?')) {
+        document.getElementById('deleteId').value = id;
+        document.getElementById('deleteForm').submit();
+    }
+}
+</script>
+{% endblock %}

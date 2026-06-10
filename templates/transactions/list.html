@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}İşlemler - MuhasebeDiyarı{% endblock %}
+{% block page_title %}İşlem Listesi{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2">
+            <div class="col-md-2">
+                <label class="form-label small">Başlangıç</label>
+                <input type="date" class="form-control form-control-sm" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Bitiş</label>
+                <input type="date" class="form-control form-control-sm" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">İşlem Türü</label>
+                <select class="form-select form-select-sm" name="entry_type">
+                    <option value="">Tümü</option>
+                    <option value="expense" {{ 'selected' if entry_type == 'expense' else '' }}>Gider</option>
+                    <option value="income" {{ 'selected' if entry_type == 'income' else '' }}>Gelir</option>
+                    <option value="gold_conversion" {{ 'selected' if entry_type == 'gold_conversion' else '' }}>Altın Bozumu</option>
+                    <option value="cash_note" {{ 'selected' if entry_type == 'cash_note' else '' }}>Kasa Notu</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Kategori</label>
+                <select class="form-select form-select-sm" name="category_id">
+                    <option value="">Tümü</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {{ 'selected' if category_id == c.id else '' }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Finansör</label>
+                <select class="form-select form-select-sm" name="financier_id">
+                    <option value="">Tümü</option>
+                    {% for f in financiers %}
+                    <option value="{{ f.id }}" {{ 'selected' if financier_id == f.id else '' }}>{{ f.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="bi bi-search me-1"></i> Filtrele
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-bold">{{ transactions.total }} işlem bulundu</span>
+        {% if user_permissions.can_add_transaction %}
+        <a href="{{ url_for('transactions.add') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i> Yeni İşlem
+        </a>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    {% macro sort_link(label, col, cls='') %}
+                    <th class="{{ cls }}">
+                        <a href="{{ url_for('transactions.list', sort=col, order='asc' if sort != col or order == 'desc' else 'desc', date_from=date_from, date_to=date_to, entry_type=entry_type, category_id=category_id, financier_id=financier_id, search=search) }}"
+                           class="text-decoration-none text-body d-flex align-items-center {{ 'fw-bold text-primary' if sort == col else '' }}">
+                            {{ label }}
+                            {% if sort == col %}
+                                <i class="bi bi-caret-{{ 'up' if order == 'asc' else 'down' }}-fill ms-1 small"></i>
+                            {% else %}
+                                <i class="bi bi-caret-up-down ms-1 small text-muted opacity-50"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    {% endmacro %}
+                    {{ sort_link('Tarih', 'date') }}
+                    {{ sort_link('Açıklama', 'description') }}
+                    {{ sort_link('Tür', 'entry_type') }}
+                    {{ sort_link('Kategori', 'category') }}
+                    <th>Ödeyen(ler)</th>
+                    {{ sort_link('Tutar', 'amount', 'text-end') }}
+                    <th class="text-center">İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transactions.items %}
+                <tr class="transaction-row">
+                    <td>{{ t.date.strftime('%d.%m.%Y') }}</td>
+                    <td>
+                        <strong class="sensitive">{{ t.description }}</strong>
+                        {% if t.note %}<br><small class="text-muted sensitive">{{ t.note[:60] }}...</small>{% endif %}
+                    </td>
+                    <td>
+                        {% if t.entry_type == 'expense' %}
+                            <span class="badge bg-danger">Gider</span>
+                        {% elif t.entry_type == 'income' %}
+                            <span class="badge bg-success">Gelir</span>
+                        {% elif t.entry_type == 'gold_conversion' %}
+                            <span class="badge bg-warning text-dark">Altın Bozumu</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Not</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.category.name if t.category else '-' }}</td>
+                    <td>
+                        {% for p in t.payers %}
+                            <span class="sensitive">{{ p.financier.name }}</span>: <span class="sensitive">{{ "{:,.0f}".format(p.amount) }}₺</span>
+                            {% if p.payment_method == 'credit_card_installment' %}({{ p.installment_count }} taksit){% elif p.payment_method == 'credit_card_single' %}(kart){% elif p.payment_method == 'gold' %}(altın){% endif %}
+                            {% if not loop.last %}<br>{% endif %}
+                        {% endfor %}
+                    </td>
+                    <td class="text-end fw-bold {{ 'text-danger' if t.entry_type == 'expense' else 'text-success' if t.entry_type == 'income' else '' }}">
+                        <span class="sensitive">{{ "{:+,.0f}".format(t.total_amount if t.entry_type in ['income', 'gold_conversion'] else -t.total_amount) }} ₺</span>
+                        {% if t.gold_grams %}<br><small class="text-warning sensitive">{{ t.gold_grams }} gr</small>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm">
+                            {% if user_permissions.can_edit_transaction %}
+                            <a href="{{ url_for('transactions.edit', id=t.id) }}" class="btn btn-outline-secondary"
+                               title="Düzenle"><i class="bi bi-pencil"></i></a>
+                            {% endif %}
+                            {% if user_permissions.can_delete_transaction %}
+                            <button type="button" class="btn btn-outline-danger"
+                                    onclick="confirmDelete({{ t.id }}, '{{ t.description[:30] }}')"
+                                    title="Sil"><i class="bi bi-trash"></i></button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center text-muted py-4">Kayıt bulunamadı.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if transactions.pages > 1 %}
+    <div class="card-footer">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                <li class="page-item {{ 'disabled' if not transactions.has_prev }}">
+                    <a class="page-link" href="{{ url_for('transactions.list', page=transactions.prev_num, date_from=date_from, date_to=date_to, entry_type=entry_type, category_id=category_id, financier_id=financier_id, search=search, sort=sort, order=order) if transactions.has_prev else '#' }}">«</a>
+                </li>
+                {% for p in transactions.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                    <li class="page-item {{ 'active' if p == transactions.page }}">
+                        <a class="page-link" href="{{ url_for('transactions.list', page=p, date_from=date_from, date_to=date_to, entry_type=entry_type, category_id=category_id, financier_id=financier_id, search=search, sort=sort, order=order) }}">{{ p }}</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {{ 'disabled' if not transactions.has_next }}">
+                    <a class="page-link" href="{{ url_for('transactions.list', page=transactions.next_num, date_from=date_from, date_to=date_to, entry_type=entry_type, category_id=category_id, financier_id=financier_id, search=search, sort=sort, order=order) if transactions.has_next else '#' }}">»</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<form id="deleteForm" method="POST" style="display:none;"></form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(id, desc) {
+    if (confirm('Bu işlemi silmek istediğinize emin misiniz?\n\n' + desc)) {
+        const form = document.getElementById('deleteForm');
+        form.action = '/transactions/delete/' + id;
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

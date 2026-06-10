@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+{% block title %}İşlem Düzenle - MuhasebeDiyarı{% endblock %}
+{% block page_title %}İşlem Düzenle{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="POST" id="transactionForm">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label for="date" class="form-label">Tarih</label>
+                            <input type="date" class="form-control" id="date" name="date" required
+                                   value="{{ transaction.date.strftime('%Y-%m-%d') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="entry_type" class="form-label">İşlem Türü</label>
+                            <select class="form-select" id="entry_type" name="entry_type" onchange="toggleEntryType(); filterCategories(); changePayerLabels();">
+                                <option value="expense" {{ 'selected' if transaction.entry_type == 'expense' else '' }}>Gider</option>
+                                <option value="income" {{ 'selected' if transaction.entry_type == 'income' else '' }}>Gelir</option>
+                                <option value="gold_conversion" {{ 'selected' if transaction.entry_type == 'gold_conversion' else '' }}>Altın Bozumu</option>
+                                <option value="cash_note" {{ 'selected' if transaction.entry_type == 'cash_note' else '' }}>Kasa Notu</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="category_id" class="form-label">Kategori</label>
+                            <div class="d-flex align-items-center gap-1">
+                                <select class="form-select" id="category_id" name="category_id">
+                                    <option value="">-- Seçiniz --</option>
+                                    {% for c in categories %}
+                                    <option value="{{ c.id }}" data-type="{{ c.type }}"
+                                        {{ 'selected' if transaction.category_id == c.id else '' }}>
+                                        {{ c.name }} ({{ 'Gider' if c.type == 'expense' else 'Gelir' }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-primary btn-sm flex-shrink-0"
+                                        data-bs-toggle="modal" data-bs-target="#quickAddCategoryModal" title="Yeni kategori ekle">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="description" class="form-label">Açıklama</label>
+                            <input type="text" class="form-control" id="description" name="description" required
+                                   value="{{ transaction.description }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="goldGramsGroup" style="display: {{ 'block' if transaction.entry_type == 'gold_conversion' else 'none' }};">
+                        <label for="gold_grams" class="form-label">Altın Miktarı (gram)</label>
+                        <input type="number" class="form-control" id="gold_grams" name="gold_grams"
+                               step="0.01" min="0" style="max-width: 200px;"
+                               value="{{ transaction.gold_grams or '' }}">
+                    </div>
+
+                    <div id="payersSection" style="display: {{ 'none' if transaction.entry_type in ['gold_conversion', 'cash_note'] else 'block' }};">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0" id="payersSectionTitle">Ödeme Yapanlar</h6>
+                            <button type="button" class="btn btn-outline-primary" onclick="addPayerRow()">
+                                <i class="bi bi-plus-circle me-1"></i> <span id="addPayerBtnText">Ödeyen Ekle</span>
+                            </button>
+                        </div>
+                        <div id="payerRows">
+                            {% for p in transaction.payers %}
+                            <div class="payer-row card bg-light mb-3">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <span class="payer-row-label small fw-semibold text-muted">{{ loop.index }}. Ödeyen</span>
+                                    <button type="button" class="btn btn-outline-danger btn-sm payer-delete-btn {% if loop.length <= 1 %}d-none{% endif %}" onclick="removePayerRow(this)" title="Bu satırı kaldır" style="padding:0.15rem 0.35rem; font-size:0.65rem; line-height:1;">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="row g-2 mb-1">
+                                        <div class="col-5">
+                                            <div class="d-flex align-items-center gap-1">
+                                                <select class="form-select form-select-sm" name="payer_financier_id[]" required>
+                                                    <option value="">-- Kim ödedi? --</option>
+                                                    {% for f in financiers %}
+                                                    <option value="{{ f.id }}" {{ 'selected' if p.financier_id == f.id else '' }}>{{ f.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                                                        data-bs-toggle="modal" data-bs-target="#quickAddFinancierModal" title="Yeni kişi ekle"
+                                                        style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <input type="number" class="form-control form-control-sm payer-amount"
+                                                   name="payer_amount[]" step="0.01" min="0" placeholder="Tutar (₺)"
+                                                   value="{{ '%.2f'|format(p.amount) if p.amount % 1 else '%.0f'|format(p.amount) }}" required>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="d-flex align-items-center gap-1">
+                                                <select class="form-select form-select-sm" name="payer_method[]" onchange="toggleInstallment(this)">
+                                                    {% for pm in payment_methods %}
+                                                    <option value="{{ pm.slug }}" data-has-installments="{{ 'true' if pm.has_installments else 'false' }}"
+                                                        {{ 'selected' if p.payment_method == pm.slug else '' }}>
+                                                        {{ pm.name }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                                                        data-bs-toggle="modal" data-bs-target="#quickAddMethodModal" title="Yeni ödeme yöntemi ekle"
+                                                        style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-3 installment-count-group" style="display: {{ 'block' if p.payment_method == 'credit_card_installment' else 'none' }};">
+                                            <input type="number" class="form-control form-control-sm"
+                                                   name="payer_installment_count[]" min="1" max="36"
+                                                   value="{{ p.installment_count or '' }}" placeholder="Taksit">
+                                        </div>
+                                        <div class="col-9">
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="payer_note[]" placeholder="Not (isteğe bağlı)" value="{{ p.note or '' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not transaction.payers %}
+                            <div class="payer-row card bg-light mb-3">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <span class="payer-row-label small fw-semibold text-muted">1. Ödeyen</span>
+                                    <button type="button" class="btn btn-outline-danger btn-sm payer-delete-btn d-none" onclick="removePayerRow(this)" title="Bu satırı kaldır" style="padding:0.15rem 0.35rem; font-size:0.65rem; line-height:1;">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="row g-2 mb-1">
+                                        <div class="col-5">
+                                            <div class="d-flex align-items-center gap-1">
+                                                <select class="form-select form-select-sm" name="payer_financier_id[]" required>
+                                                    <option value="">-- Kim ödedi? --</option>
+                                                    {% for f in financiers %}
+                                                    <option value="{{ f.id }}">{{ f.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                                                        data-bs-toggle="modal" data-bs-target="#quickAddFinancierModal" title="Yeni kişi ekle"
+                                                        style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-3">
+                                            <input type="number" class="form-control form-control-sm payer-amount"
+                                                   name="payer_amount[]" step="0.01" min="0" placeholder="Tutar (₺)" required>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="d-flex align-items-center gap-1">
+                                                <select class="form-select form-select-sm" name="payer_method[]" onchange="toggleInstallment(this)">
+                                                    {% for pm in payment_methods %}
+                                                    <option value="{{ pm.slug }}" data-has-installments="{{ 'true' if pm.has_installments else 'false' }}">
+                                                        {{ pm.name }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+                                                        data-bs-toggle="modal" data-bs-target="#quickAddMethodModal" title="Yeni ödeme yöntemi ekle"
+                                                        style="padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-3 installment-count-group" style="display:none;">
+                                            <input type="number" class="form-control form-control-sm"
+                                                   name="payer_installment_count[]" min="1" max="36" placeholder="Taksit">
+                                        </div>
+                                        <div class="col-9">
+                                            <input type="text" class="form-control form-control-sm"
+                                                   name="payer_note[]" placeholder="Not (isteğe bağlı)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label for="note" class="form-label">Genel Not</label>
+                        <textarea class="form-control" id="note" name="note" rows="3">{{ transaction.note or '' }}</textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i> Güncelle
+                        </button>
+                        <a href="{{ url_for('transactions.list') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> İptal
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Add Category Modal -->
+<div class="modal fade" id="quickAddCategoryModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Yeni Kategori</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label small">Adı</label>
+                    <input type="text" class="form-control form-control-sm" id="quickCatName" placeholder="Kategori adı">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Türü</label>
+                    <select class="form-select form-select-sm" id="quickCatType">
+                        <option value="expense">Gider</option>
+                        <option value="income">Gelir</option>
+                        <option value="both">İkisi de</option>
+                    </select>
+                </div>
+                <div id="quickCatError" class="text-danger small d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-sm" onclick="quickAddCategory()">Ekle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Add Financier Modal -->
+<div class="modal fade" id="quickAddFinancierModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Yeni Kişi / Firma</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label small">Adı</label>
+                    <input type="text" class="form-control form-control-sm" id="quickFinName" placeholder="Kişi / firma adı">
+                </div>
+                <div id="quickFinError" class="text-danger small d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-sm" onclick="quickAddFinancier()">Ekle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Add Payment Method Modal -->
+<div class="modal fade" id="quickAddMethodModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Yeni Ödeme Yöntemi</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="form-label small">Adı</label>
+                    <input type="text" class="form-control form-control-sm" id="quickMethodName" placeholder="Örn: Senet">
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="quickMethodHasInstallments">
+                    <label class="form-check-label small" for="quickMethodHasInstallments">Taksitli</label>
+                </div>
+                <div id="quickMethodError" class="text-danger small d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-sm" onclick="quickAddMethod()">Ekle</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var financiers = [{% for f in financiers %}{"id": {{ f.id }}, "name": "{{ f.name }}"}{% if not loop.last %},{% endif %}{% endfor %}];
+var paymentMethods = [{% for pm in payment_methods %}{"id": {{ pm.id }}, "name": "{{ pm.name }}", "slug": "{{ pm.slug }}", "has_installments": {{ 'true' if pm.has_installments else 'false' }}}{% if not loop.last %},{% endif %}{% endfor %}];
+
+function toggleEntryType() {
+    const type = document.getElementById('entry_type').value;
+    document.getElementById('goldGramsGroup').style.display = type === 'gold_conversion' ? 'block' : 'none';
+    document.getElementById('payersSection').style.display = (type === 'gold_conversion' || type === 'cash_note') ? 'none' : 'block';
+    changePayerLabels();
+}
+
+function filterCategories() {
+    const entryType = document.getElementById('entry_type').value;
+    const select = document.getElementById('category_id');
+    const options = select.querySelectorAll('option');
+    options.forEach(opt => {
+        if (!opt.value) return;
+        const catType = opt.dataset.type;
+        if (entryType === 'gold_conversion' || entryType === 'cash_note') {
+            opt.style.display = '';
+        } else if (entryType === 'expense') {
+            opt.style.display = (catType === 'expense' || catType === 'both') ? '' : 'none';
+        } else if (entryType === 'income') {
+            opt.style.display = (catType === 'income' || catType === 'both') ? '' : 'none';
+        }
+    });
+}
+
+function getPayerLabel() {
+    const type = document.getElementById('entry_type').value;
+    const map = {
+        'expense': 'Ödeyen',
+        'income': 'Kişi',
+        'gold_conversion': 'Kaynak',
+        'cash_note': 'Kişi'
+    };
+    return map[type] || 'Ödeyen';
+}
+
+function getPayerPlaceholder() {
+    const type = document.getElementById('entry_type').value;
+    const map = {
+        'expense': '-- Kim ödedi? --',
+        'income': '-- Kimden geldi? --',
+        'gold_conversion': '-- Kimin altını? --',
+        'cash_note': '-- Kim? --'
+    };
+    return map[type] || '-- Kim ödedi? --';
+}
+
+function changePayerLabels() {
+    const type = document.getElementById('entry_type').value;
+    const title = document.getElementById('payersSectionTitle');
+    const btnText = document.getElementById('addPayerBtnText');
+    const labels = {
+        'expense': { title: 'Ödeme Yapanlar', btn: 'Ödeyen Ekle' },
+        'income': { title: 'Gelen Ödemeler', btn: 'Kişi Ekle' },
+        'gold_conversion': { title: 'Altın Kaynağı', btn: 'Ekle' },
+        'cash_note': { title: 'İlgili Kişiler', btn: 'Ekle' }
+    };
+    const label = labels[type] || labels['expense'];
+    if (title) title.textContent = label.title;
+    if (btnText) btnText.textContent = label.btn;
+    document.querySelectorAll('select[name="payer_financier_id[]"] option[value=""]').forEach(opt => {
+        opt.textContent = getPayerPlaceholder();
+    });
+    updatePayerRowLabels();
+}
+
+function updatePayerRowLabels() {
+    const rows = document.querySelectorAll('#payerRows .payer-row');
+    const label = getPayerLabel();
+    rows.forEach((row, i) => {
+        const labelEl = row.querySelector('.payer-row-label');
+        if (labelEl) labelEl.textContent = (i + 1) + '. ' + label;
+        const delBtn = row.querySelector('.payer-delete-btn');
+        if (delBtn) {
+            delBtn.classList.toggle('d-none', rows.length <= 1);
+        }
+    });
+}
+
+function addPayerRow() {
+    const row = document.createElement('div');
+    row.className = 'payer-row card bg-light mb-3';
+    const finOptions = financiers.map(f => '<option value="' + f.id + '">' + f.name + '</option>').join('');
+    const methodOptions = paymentMethods.map(pm => '<option value="' + pm.slug + '" data-has-installments="' + pm.has_installments + '">' + pm.name + '</option>').join('');
+    var placeholder = getPayerPlaceholder();
+    row.innerHTML =
+        '<div class="card-header py-2 d-flex justify-content-between align-items-center">' +
+            '<span class="payer-row-label small fw-semibold text-muted">' + getPayerLabel() + '</span>' +
+            '<button type="button" class="btn btn-outline-danger btn-sm payer-delete-btn" onclick="removePayerRow(this)" title="Bu satırı kaldır" style="padding:0.15rem 0.35rem; font-size:0.65rem; line-height:1;">' +
+                '<i class="bi bi-x"></i>' +
+            '</button>' +
+        '</div>' +
+        '<div class="card-body p-2">' +
+            '<div class="row g-2 mb-1">' +
+                '<div class="col-5">' +
+                    '<div class="d-flex align-items-center gap-1">' +
+                        '<select class="form-select form-select-sm" name="payer_financier_id[]" required>' +
+                            '<option value="">' + placeholder + '</option>' + finOptions +
+                        '</select>' +
+                        '<button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#quickAddFinancierModal" title="Yeni kişi ekle" style="padding:0.2rem 0.4rem; font-size:0.75rem;">' +
+                            '<i class="bi bi-plus"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="col-3">' +
+                    '<input type="number" class="form-control form-control-sm payer-amount" name="payer_amount[]" step="0.01" min="0" placeholder="Tutar (₺)" required>' +
+                '</div>' +
+                '<div class="col-4">' +
+                    '<div class="d-flex align-items-center gap-1">' +
+                        '<select class="form-select form-select-sm" name="payer_method[]" onchange="toggleInstallment(this)">' + methodOptions + '</select>' +
+                        '<button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#quickAddMethodModal" title="Yeni ödeme yöntemi ekle" style="padding:0.2rem 0.4rem; font-size:0.75rem;">' +
+                            '<i class="bi bi-plus"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="row g-2">' +
+                '<div class="col-3 installment-count-group" style="display:none;">' +
+                    '<input type="number" class="form-control form-control-sm" name="payer_installment_count[]" min="1" max="36" placeholder="Taksit">' +
+                '</div>' +
+                '<div class="col-9">' +
+                    '<input type="text" class="form-control form-control-sm" name="payer_note[]" placeholder="Not (isteğe bağlı)">' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    document.getElementById('payerRows').appendChild(row);
+    updatePayerRowLabels();
+}
+
+function removePayerRow(btn) {
+    const row = btn.closest('.payer-row');
+    const rows = document.querySelectorAll('#payerRows .payer-row');
+    if (rows.length <= 1) return;
+    row.remove();
+    updatePayerRowLabels();
+}
+
+function toggleInstallment(select) {
+    const row = select.closest('.payer-row');
+    const instGroup = row.querySelector('.installment-count-group');
+    if (!instGroup) return;
+    const hasInstallments = select.selectedOptions[0].dataset.hasInstallments === 'true';
+    instGroup.style.display = hasInstallments ? 'block' : 'none';
+}
+
+function quickAddCategory() {
+    const name = document.getElementById('quickCatName').value.trim();
+    const type = document.getElementById('quickCatType').value;
+    const err = document.getElementById('quickCatError');
+    if (!name) { err.textContent = 'Ad zorunludur.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none');
+    fetch('{{ url_for("categories.quick_add") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'name=' + encodeURIComponent(name) + '&type=' + type
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelectorAll('select[name="category_id"]').forEach(sel => {
+                const opt = document.createElement('option');
+                opt.value = data.id;
+                opt.textContent = data.name + ' (' + (data.type === 'expense' ? 'Gider' : 'Gelir') + ')';
+                opt.dataset.type = data.type;
+                sel.appendChild(opt);
+                sel.value = data.id;
+            });
+            const modal = bootstrap.Modal.getInstance(document.getElementById('quickAddCategoryModal'));
+            modal.hide();
+            document.getElementById('quickCatName').value = '';
+            filterCategories();
+        } else {
+            err.textContent = data.error;
+            err.classList.remove('d-none');
+        }
+    });
+}
+
+function quickAddFinancier() {
+    const name = document.getElementById('quickFinName').value.trim();
+    const err = document.getElementById('quickFinError');
+    if (!name) { err.textContent = 'Ad zorunludur.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none');
+    fetch('{{ url_for("financiers.quick_add") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'name=' + encodeURIComponent(name)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            financiers.push({id: data.id, name: data.name});
+            document.querySelectorAll('select[name="payer_financier_id[]"]').forEach(sel => {
+                const opt = document.createElement('option');
+                opt.value = data.id;
+                opt.textContent = data.name;
+                sel.appendChild(opt);
+                sel.value = data.id;
+            });
+            const modal = bootstrap.Modal.getInstance(document.getElementById('quickAddFinancierModal'));
+            modal.hide();
+            document.getElementById('quickFinName').value = '';
+        } else {
+            err.textContent = data.error;
+            err.classList.remove('d-none');
+        }
+    });
+}
+
+function quickAddMethod() {
+    const name = document.getElementById('quickMethodName').value.trim();
+    const hasInst = document.getElementById('quickMethodHasInstallments').checked;
+    const err = document.getElementById('quickMethodError');
+    if (!name) { err.textContent = 'Ad zorunludur.'; err.classList.remove('d-none'); return; }
+    err.classList.add('d-none');
+    var body = 'name=' + encodeURIComponent(name);
+    if (hasInst) body += '&has_installments=on';
+    fetch('{{ url_for("payment_methods.quick_add") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            paymentMethods.push({id: data.id, name: data.name, slug: data.slug, has_installments: data.has_installments});
+            document.querySelectorAll('select[name="payer_method[]"]').forEach(sel => {
+                const opt = document.createElement('option');
+                opt.value = data.slug;
+                opt.textContent = data.name;
+                opt.dataset.hasInstallments = data.has_installments ? 'true' : 'false';
+                sel.appendChild(opt);
+                sel.value = data.slug;
+                toggleInstallment(sel);
+            });
+            const modal = bootstrap.Modal.getInstance(document.getElementById('quickAddMethodModal'));
+            modal.hide();
+            document.getElementById('quickMethodName').value = '';
+            document.getElementById('quickMethodHasInstallments').checked = false;
+        } else {
+            err.textContent = data.error;
+            err.classList.remove('d-none');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    toggleEntryType();
+    filterCategories();
+    changePayerLabels();
+});
+</script>
+{% endblock %}

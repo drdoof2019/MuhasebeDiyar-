@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Kategori Raporu - MuhasebeDiyarı{% endblock %}
+{% block page_title %}Kategori Raporu{% if entry_type == 'income' %} (Gelirler){% elif entry_type == 'expense' %} (Giderler){% endif %}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small">Tür</label>
+                <select class="form-select form-select-sm" name="entry_type" onchange="this.form.submit()">
+                    <option value="all" {{ 'selected' if entry_type == 'all' else '' }}>Tümü</option>
+                    <option value="expense" {{ 'selected' if entry_type == 'expense' else '' }}>Gider</option>
+                    <option value="income" {{ 'selected' if entry_type == 'income' else '' }}>Gelir</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small">Yıl</label>
+                <select class="form-select form-select-sm" name="year" onchange="this.form.submit()">
+                    <option value="">Tümü</option>
+                    {% for y in years %}
+                    <option value="{{ y }}" {{ 'selected' if year == y else '' }}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small">Ay</label>
+                <select class="form-select form-select-sm" name="month" onchange="this.form.submit()">
+                    <option value="">Tümü</option>
+                    {% set aylar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'] %}
+                    {% for i in range(1, 13) %}
+                    <option value="{{ i }}" {{ 'selected' if month == i else '' }}>{{ aylar[i-1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <canvas id="categoryPieChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Kategori</th>
+                            <th class="text-end">
+                                {% if entry_type == 'income' %}Toplam Gelir{% elif entry_type == 'expense' %}Toplam Gider{% else %}Toplam Tutar{% endif %}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set amount_class = 'text-success' if entry_type == 'income' else 'text-danger' if entry_type == 'expense' else '' %}
+                        {% for r in results %}
+                        <tr>
+                            <td>{{ r.name }}</td>
+                            <td class="text-end {{ amount_class }}"><span class="sensitive">{{ "{:,.0f} ₺".format(r.total) }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="2" class="text-center text-muted">Kayıt bulunamadı.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ctx = document.getElementById('categoryPieChart').getContext('2d');
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: [{% for r in results %}'{{ r.name }}',{% endfor %}],
+        datasets: [{
+            data: [{% for r in results %}{{ r.total }},{% endfor %}],
+            backgroundColor: [
+                {% if entry_type == 'income' %}
+                '#198754', '#20c997', '#0dcaf0', '#0d6efd', '#6610f2',
+                '#6f42c1', '#d63384', '#fd7e14', '#ffc107', '#adb5bd',
+                '#6c757d', '#495057', '#212529', '#e83e8c', '#17a2b8'
+                {% else %}
+                '#dc3545', '#fd7e14', '#ffc107', '#198754', '#0dcaf0',
+                '#6610f2', '#d63384', '#6f42c1', '#20c997', '#0d6efd',
+                '#adb5bd', '#6c757d', '#495057', '#212529', '#e83e8c'
+                {% endif %}
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: { display: true, text: 'Kategorilere Göre {% if entry_type == "income" %}Gelir{% elif entry_type == "expense" %}Gider{% else %}İşlem{% endif %} Dağılımı', font: { size: 14 } },
+            legend: { position: 'bottom' }
+        }
+    }
+});
+</script>
+{% endblock %}
