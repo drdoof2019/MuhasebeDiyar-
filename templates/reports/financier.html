@@ -3,7 +3,7 @@
 {% block page_title %}Finansör Raporu{% if entry_type == 'income' %} (Gelirler){% elif entry_type == 'expense' %} (Giderler){% endif %}{% endblock %}
 
 {% block head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -16,6 +16,7 @@
                     <option value="all" {{ 'selected' if entry_type == 'all' else '' }}>Tümü</option>
                     <option value="expense" {{ 'selected' if entry_type == 'expense' else '' }}>Gider</option>
                     <option value="income" {{ 'selected' if entry_type == 'income' else '' }}>Gelir</option>
+                    <option value="settlement" {{ 'selected' if entry_type == 'settlement' else '' }}>Mahsuplaşma</option>
                 </select>
             </div>
             <div class="col-auto">

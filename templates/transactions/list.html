@@ -22,6 +22,7 @@
                     <option value="income" {{ 'selected' if entry_type == 'income' else '' }}>Gelir</option>
                     <option value="gold_conversion" {{ 'selected' if entry_type == 'gold_conversion' else '' }}>Altın Bozumu</option>
                     <option value="cash_note" {{ 'selected' if entry_type == 'cash_note' else '' }}>Kasa Notu</option>
+                    <option value="settlement" {{ 'selected' if entry_type == 'settlement' else '' }}>Mahsuplaşma</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -101,6 +102,8 @@
                             <span class="badge bg-success">Gelir</span>
                         {% elif t.entry_type == 'gold_conversion' %}
                             <span class="badge bg-warning text-dark">Altın Bozumu</span>
+                        {% elif t.entry_type == 'settlement' %}
+                            <span class="badge bg-info text-dark">Mahsuplaşma</span>
                         {% else %}
                             <span class="badge bg-secondary">Not</span>
                         {% endif %}
@@ -113,7 +116,7 @@
                             {% if not loop.last %}<br>{% endif %}
                         {% endfor %}
                     </td>
-                    <td class="text-end fw-bold {{ 'text-danger' if t.entry_type == 'expense' else 'text-success' if t.entry_type == 'income' else '' }}">
+                    <td class="text-end fw-bold {{ 'text-danger' if t.entry_type == 'expense' else 'text-success' if t.entry_type == 'income' else 'text-info' if t.entry_type == 'settlement' else '' }}">
                         <span class="sensitive">{{ "{:+,.0f}".format(t.total_amount if t.entry_type in ['income', 'gold_conversion'] else -t.total_amount) }} ₺</span>
                         {% if t.gold_grams %}<br><small class="text-warning sensitive">{{ t.gold_grams }} gr</small>{% endif %}
                     </td>

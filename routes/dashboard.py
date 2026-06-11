@@ -18,7 +18,7 @@ def index():
     current_year = today.year
     month_start = datetime(current_year, current_month, 1).date()
 
-    # Current month totals
+    # Current month totals (excluding settlement)
     month_expenses = db.session.query(func.sum(Transaction.total_amount)).filter(
         Transaction.date >= month_start,
         Transaction.entry_type == 'expense'
@@ -34,7 +34,7 @@ def index():
         Transaction.entry_type == 'gold_conversion'
     ).scalar() or 0
 
-    # Yearly totals
+    # Yearly totals (excluding settlement)
     year_start = datetime(current_year, 1, 1).date()
     year_expenses = db.session.query(func.sum(Transaction.total_amount)).filter(
         Transaction.date >= year_start,
@@ -46,7 +46,7 @@ def index():
         Transaction.entry_type == 'income'
     ).scalar() or 0
 
-    # All time totals
+    # All time totals (excluding settlement)
     all_expenses = db.session.query(func.sum(Transaction.total_amount)).filter(
         Transaction.entry_type == 'expense'
     ).scalar() or 0

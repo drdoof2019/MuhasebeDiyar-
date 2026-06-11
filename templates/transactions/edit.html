@@ -16,14 +16,18 @@
                         </div>
                         <div class="col-md-3">
                             <label for="entry_type" class="form-label">İşlem Türü</label>
-                            <select class="form-select" id="entry_type" name="entry_type" onchange="toggleEntryType(); filterCategories(); changePayerLabels();">
+                            <select class="form-select" id="entry_type" name="entry_type" onchange="toggleEntryType(); filterCategories(); changePayerLabels();" {{ 'disabled' if transaction.entry_type == 'settlement' else '' }}>
                                 <option value="expense" {{ 'selected' if transaction.entry_type == 'expense' else '' }}>Gider</option>
                                 <option value="income" {{ 'selected' if transaction.entry_type == 'income' else '' }}>Gelir</option>
                                 <option value="gold_conversion" {{ 'selected' if transaction.entry_type == 'gold_conversion' else '' }}>Altın Bozumu</option>
                                 <option value="cash_note" {{ 'selected' if transaction.entry_type == 'cash_note' else '' }}>Kasa Notu</option>
+                                <option value="settlement" {{ 'selected' if transaction.entry_type == 'settlement' else '' }}>Mahsuplaşma</option>
                             </select>
+                            {% if transaction.entry_type == 'settlement' %}
+                            <input type="hidden" name="entry_type" value="settlement">
+                            {% endif %}
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3" id="categoryGroup">
                             <label for="category_id" class="form-label">Kategori</label>
                             <div class="d-flex align-items-center gap-1">
                                 <select class="form-select" id="category_id" name="category_id">
@@ -55,7 +59,56 @@
                                value="{{ transaction.gold_grams or '' }}">
                     </div>
 
-                    <div id="payersSection" style="display: {{ 'none' if transaction.entry_type in ['gold_conversion', 'cash_note'] else 'block' }};">
+                    {% set settlement_payers = transaction.payers | list %}
+                    <div id="settlementSection" style="display: {{ 'block' if transaction.entry_type == 'settlement' else 'none' }};">
+                        <h6 class="mb-3">Mahsuplaşma Detayı</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label for="settlement_from" class="form-label">Gönderen</label>
+                                <select class="form-select" id="settlement_from" name="settlement_from">
+                                    <option value="">-- Kim veriyor? --</option>
+                                    {% for f in financiers %}
+                                    {% set ns = namespace(is_from=false) %}
+                                    {% for p in settlement_payers %}{% if p.financier_id == f.id and p.amount > 0 %}{% set ns.is_from = true %}{% endif %}{% endfor %}
+                                    <option value="{{ f.id }}" {{ 'selected' if ns.is_from else '' }}>{{ f.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end justify-content-center">
+                                <i class="bi bi-arrow-right fs-4 text-muted mb-2"></i>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="settlement_to" class="form-label">Alıcı</label>
+                                <select class="form-select" id="settlement_to" name="settlement_to">
+                                    <option value="">-- Kim alıyor? --</option>
+                                    {% for f in financiers %}
+                                    {% set ns = namespace(is_to=false) %}
+                                    {% for p in settlement_payers %}{% if p.financier_id == f.id and p.amount < 0 %}{% set ns.is_to = true %}{% endif %}{% endfor %}
+                                    <option value="{{ f.id }}" {{ 'selected' if ns.is_to else '' }}>{{ f.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="settlement_amount" class="form-label">Tutar (₺)</label>
+                                <input type="number" class="form-control" id="settlement_amount" name="settlement_amount" step="0.01" min="0.01" placeholder="Tutar"
+                                       value="{{ '%.2f'|format(transaction.total_amount) if transaction.entry_type == 'settlement' else '' }}">
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label for="settlement_method" class="form-label">Ödeme Yöntemi</label>
+                                <select class="form-select form-select-sm" id="settlement_method" name="settlement_method">
+                                    {% for pm in payment_methods %}
+                                    {% set ns = namespace(is_method=false) %}
+                                    {% for p in settlement_payers %}{% if p.amount > 0 and p.payment_method == pm.slug %}{% set ns.is_method = true %}{% endif %}{% endfor %}
+                                    <option value="{{ pm.slug }}" {{ 'selected' if ns.is_method else '' }}>{{ pm.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="payersSection" style="display: {{ 'none' if transaction.entry_type in ['gold_conversion', 'cash_note', 'settlement'] else 'block' }};">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0" id="payersSectionTitle">Ödeme Yapanlar</h6>
                             <button type="button" class="btn btn-outline-primary" onclick="addPayerRow()">
@@ -292,8 +345,16 @@ var paymentMethods = [{% for pm in payment_methods %}{"id": {{ pm.id }}, "name":
 
 function toggleEntryType() {
     const type = document.getElementById('entry_type').value;
+    var hidePayers = type === 'gold_conversion' || type === 'cash_note' || type === 'settlement';
+    var isSettlement = type === 'settlement';
     document.getElementById('goldGramsGroup').style.display = type === 'gold_conversion' ? 'block' : 'none';
-    document.getElementById('payersSection').style.display = (type === 'gold_conversion' || type === 'cash_note') ? 'none' : 'block';
+    document.getElementById('payersSection').style.display = hidePayers ? 'none' : 'block';
+    document.getElementById('settlementSection').style.display = isSettlement ? 'block' : 'none';
+    document.getElementById('categoryGroup').style.display = isSettlement ? 'none' : '';
+    // Toggle required on hidden payer fields to prevent HTML5 validation blocking submit
+    document.querySelectorAll('#payerRows select[name="payer_financier_id[]"], #payerRows input[name="payer_amount[]"]').forEach(function(el) {
+        el.required = !hidePayers;
+    });
     changePayerLabels();
 }
 
@@ -301,6 +362,10 @@ function filterCategories() {
     const entryType = document.getElementById('entry_type').value;
     const select = document.getElementById('category_id');
     const options = select.querySelectorAll('option');
+    if (entryType === 'settlement') {
+        select.value = '';
+        return;
+    }
     options.forEach(opt => {
         if (!opt.value) return;
         const catType = opt.dataset.type;
@@ -320,7 +385,8 @@ function getPayerLabel() {
         'expense': 'Ödeyen',
         'income': 'Kişi',
         'gold_conversion': 'Kaynak',
-        'cash_note': 'Kişi'
+        'cash_note': 'Kişi',
+        'settlement': 'Kişi'
     };
     return map[type] || 'Ödeyen';
 }
@@ -344,7 +410,8 @@ function changePayerLabels() {
         'expense': { title: 'Ödeme Yapanlar', btn: 'Ödeyen Ekle' },
         'income': { title: 'Gelen Ödemeler', btn: 'Kişi Ekle' },
         'gold_conversion': { title: 'Altın Kaynağı', btn: 'Ekle' },
-        'cash_note': { title: 'İlgili Kişiler', btn: 'Ekle' }
+        'cash_note': { title: 'İlgili Kişiler', btn: 'Ekle' },
+        'settlement': { title: 'Mahsuplaşma', btn: 'Ekle' }
     };
     const label = labels[type] || labels['expense'];
     if (title) title.textContent = label.title;

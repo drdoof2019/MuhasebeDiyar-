@@ -3,7 +3,7 @@
 {% block page_title %}Kategori Raporu{% if entry_type == 'income' %} (Gelirler){% elif entry_type == 'expense' %} (Giderler){% endif %}{% endblock %}
 
 {% block head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
 {% endblock %}
 
 {% block content %}

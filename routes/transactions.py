@@ -129,7 +129,66 @@ def add():
             flash('Açıklama zorunludur.', 'danger')
             return render_template('transactions/add.html', categories=categories, financiers=financiers)
 
-        # Calculate total from payers
+        if entry_type == 'settlement':
+            # Settlement: iki finansör arası mahsuplaşma
+            from_id = request.form.get('settlement_from', type=int)
+            to_id = request.form.get('settlement_to', type=int)
+            amount = request.form.get('settlement_amount', type=float)
+            method = request.form.get('settlement_method', 'cash')
+
+            if not from_id or not to_id:
+                flash('Gönderen ve alıcı zorunludur.', 'danger')
+                return render_template('transactions/add.html', categories=categories,
+                                     financiers=financiers, payment_methods=payment_methods,
+                                     today_date=today_date)
+
+            if from_id == to_id:
+                flash('Gönderen ve alıcı aynı kişi olamaz.', 'danger')
+                return render_template('transactions/add.html', categories=categories,
+                                     financiers=financiers, payment_methods=payment_methods,
+                                     today_date=today_date)
+
+            if not amount or amount <= 0:
+                flash('Geçerli bir tutar giriniz.', 'danger')
+                return render_template('transactions/add.html', categories=categories,
+                                     financiers=financiers, payment_methods=payment_methods,
+                                     today_date=today_date)
+
+            transaction = Transaction(
+                date=date,
+                entry_type=entry_type,
+                description=description,
+                category_id=None,
+                total_amount=amount,
+                gold_grams=None,
+                note=note,
+                created_by=current_user.id
+            )
+            db.session.add(transaction)
+            db.session.flush()
+
+            # Gönderen: pozitif amount (yükü artar)
+            db.session.add(TransactionPayer(
+                transaction_id=transaction.id,
+                financier_id=from_id,
+                amount=amount,
+                payment_method=method,
+                note='Mahsuplaşma: ' + description
+            ))
+            # Alıcı: negatif amount (yükü azalır)
+            db.session.add(TransactionPayer(
+                transaction_id=transaction.id,
+                financier_id=to_id,
+                amount=-amount,
+                payment_method=method,
+                note='Mahsuplaşma: ' + description
+            ))
+
+            db.session.commit()
+            flash('Mahsuplaşma kaydedildi.', 'success')
+            return redirect(url_for('transactions.list'))
+
+        # Normal transaction: calculate total from payers
         total_amount = 0
         payer_data = []
 
@@ -215,7 +274,8 @@ def edit(id):
                                  categories=categories, financiers=financiers,
                                  payment_methods=payment_methods)
 
-        transaction.entry_type = request.form.get('entry_type', 'expense')
+        entry_type = request.form.get('entry_type', 'expense')
+        transaction.entry_type = entry_type
         transaction.description = request.form.get('description', '').strip()
         transaction.category_id = request.form.get('category_id', type=int)
         if not transaction.category_id:
@@ -226,35 +286,79 @@ def edit(id):
         # Remove existing payers
         TransactionPayer.query.filter_by(transaction_id=transaction.id).delete()
 
-        total_amount = 0
-        payer_ids = request.form.getlist('payer_financier_id[]')
-        payer_amounts = request.form.getlist('payer_amount[]')
-        payer_methods = request.form.getlist('payer_method[]')
-        payer_installments = request.form.getlist('payer_installment_count[]')
-        payer_notes = request.form.getlist('payer_note[]')
+        if entry_type == 'settlement':
+            from_id = request.form.get('settlement_from', type=int)
+            to_id = request.form.get('settlement_to', type=int)
+            amount = request.form.get('settlement_amount', type=float)
+            method = request.form.get('settlement_method', 'cash')
 
-        for i in range(len(payer_ids)):
-            if i < len(payer_amounts) and payer_amounts[i]:
-                try:
-                    amount = float(payer_amounts[i])
-                    if amount > 0:
-                        fid = int(payer_ids[i])
-                        method = payer_methods[i] if i < len(payer_methods) else 'cash'
-                        inst = int(payer_installments[i]) if i < len(payer_installments) and payer_installments[i] else None
-                        pnote = payer_notes[i] if i < len(payer_notes) else ''
-                        total_amount += amount
-                        db.session.add(TransactionPayer(
-                            transaction_id=transaction.id,
-                            financier_id=fid,
-                            amount=amount,
-                            payment_method=method,
-                            installment_count=inst,
-                            note=pnote
-                        ))
-                except (ValueError, TypeError):
-                    pass
+            if not from_id or not to_id:
+                flash('Gönderen ve alıcı zorunludur.', 'danger')
+                return render_template('transactions/edit.html', transaction=transaction,
+                                     categories=categories, financiers=financiers,
+                                     payment_methods=payment_methods)
 
-        transaction.total_amount = total_amount
+            if from_id == to_id:
+                flash('Gönderen ve alıcı aynı kişi olamaz.', 'danger')
+                return render_template('transactions/edit.html', transaction=transaction,
+                                     categories=categories, financiers=financiers,
+                                     payment_methods=payment_methods)
+
+            if not amount or amount <= 0:
+                flash('Geçerli bir tutar giriniz.', 'danger')
+                return render_template('transactions/edit.html', transaction=transaction,
+                                     categories=categories, financiers=financiers,
+                                     payment_methods=payment_methods)
+
+            transaction.total_amount = amount
+            transaction.gold_grams = None
+            transaction.category_id = None
+
+            db.session.add(TransactionPayer(
+                transaction_id=transaction.id,
+                financier_id=from_id,
+                amount=amount,
+                payment_method=method,
+                note='Mahsuplaşma: ' + transaction.description
+            ))
+            db.session.add(TransactionPayer(
+                transaction_id=transaction.id,
+                financier_id=to_id,
+                amount=-amount,
+                payment_method=method,
+                note='Mahsuplaşma: ' + transaction.description
+            ))
+        else:
+            total_amount = 0
+            payer_ids = request.form.getlist('payer_financier_id[]')
+            payer_amounts = request.form.getlist('payer_amount[]')
+            payer_methods = request.form.getlist('payer_method[]')
+            payer_installments = request.form.getlist('payer_installment_count[]')
+            payer_notes = request.form.getlist('payer_note[]')
+
+            for i in range(len(payer_ids)):
+                if i < len(payer_amounts) and payer_amounts[i]:
+                    try:
+                        amount = float(payer_amounts[i])
+                        if amount > 0:
+                            fid = int(payer_ids[i])
+                            method = payer_methods[i] if i < len(payer_methods) else 'cash'
+                            inst = int(payer_installments[i]) if i < len(payer_installments) and payer_installments[i] else None
+                            pnote = payer_notes[i] if i < len(payer_notes) else ''
+                            total_amount += amount
+                            db.session.add(TransactionPayer(
+                                transaction_id=transaction.id,
+                                financier_id=fid,
+                                amount=amount,
+                                payment_method=method,
+                                installment_count=inst,
+                                note=pnote
+                            ))
+                    except (ValueError, TypeError):
+                        pass
+
+            transaction.total_amount = total_amount
+
         db.session.commit()
         flash('İşlem güncellendi.', 'success')
         return redirect(url_for('transactions.list'))

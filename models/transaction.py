@@ -8,7 +8,7 @@ class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False, index=True)
     entry_type = db.Column(db.String(16), nullable=False, default='expense')
-    # expense, income, gold_conversion, cash_note
+    # expense, income, gold_conversion, cash_note, settlement
     description = db.Column(db.String(512), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
     total_amount = db.Column(db.Float, nullable=False, default=0.0)
