@@ -18,6 +18,9 @@ instance/.last_backup
 instance/pre_restore_*.db
 instance/secret_key.txt
 
+# Sensitive seed data (developer-only)
+seed_sample_data.py
+
 # Environment
 .env
 

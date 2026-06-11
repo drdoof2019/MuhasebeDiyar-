@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
@@ -58,9 +58,34 @@ def create_app():
     # Context processors
     @app.context_processor
     def inject_user_permissions():
-        from flask_login import current_user
-        if current_user.is_authenticated:
-            return {'user_permissions': current_user.get_permissions()}
-        return {'user_permissions': {}}
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                return {'user_permissions': current_user.get_permissions()}
+        except Exception:
+            pass
+        return {
+            'user_permissions': {
+                'can_view_transactions': False,
+                'can_add_transaction': False,
+                'can_edit_transaction': False,
+                'can_delete_transaction': False,
+                'can_view_reports': False,
+                'can_manage_users': False,
+            }
+        }
+
+    # Error handlers
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template('base.html', page_title='Erişim Engellendi (403)'), 403
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template('base.html', page_title='Sayfa Bulunamadı (404)'), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return render_template('base.html', page_title='Sunucu Hatası (500)'), 500
 
     return app

@@ -75,6 +75,12 @@ app.run(host='0.0.0.0', port=5050, debug=True)
 - Veritabanı (`instance/muhasebe.db`) hassas veri içerir, paylaşmayın
 - Uygulama sadece `127.0.0.1` (localhost) üzerinden erişilebilir şekilde tasarlanmıştır. Dış ağa açmayın.
 
+
+## Örnek Veri (varsa)
+
+- python seed_sample_data.py
+
+
 ## Sorun Giderme
 
 | Sorun | Çözüm |
@@ -87,4 +93,6 @@ app.run(host='0.0.0.0', port=5050, debug=True)
 
 ## Lisans
 
-Özel kullanım içindir.
+MIT
+
+
