@@ -13,10 +13,17 @@ def require_admin():
     return None
 
 
+def require_manage_users():
+    if not current_user.get_permissions().get('can_manage_users'):
+        flash('Bu sayfaya sadece yönetici erişebilir.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    return None
+
+
 @users_bp.route('/users')
 @login_required
 def list():
-    error = require_admin()
+    error = require_manage_users()
     if error: return error
 
     users = User.query.order_by(User.username).all()
@@ -26,7 +33,7 @@ def list():
 @users_bp.route('/users/create', methods=['GET', 'POST'])
 @login_required
 def create():
-    error = require_admin()
+    error = require_manage_users()
     if error: return error
 
     if request.method == 'POST':
@@ -73,7 +80,7 @@ def create():
 @users_bp.route('/users/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit(id):
-    error = require_admin()
+    error = require_manage_users()
     if error: return error
 
     user = User.query.get_or_404(id)

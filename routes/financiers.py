@@ -14,6 +14,12 @@ def require_admin():
     return None
 
 
+def require_add_transaction():
+    if not current_user.get_permissions().get('can_add_transaction'):
+        return jsonify(success=False, error='Yetkisiz erişim'), 403
+    return None
+
+
 @financiers_bp.route('/financiers', methods=['GET', 'POST'])
 @login_required
 def list():
@@ -75,7 +81,7 @@ def list():
 @financiers_bp.route('/financiers/quick_add', methods=['POST'])
 @login_required
 def quick_add():
-    error = require_admin()
+    error = require_add_transaction()
     if error:
         return jsonify(success=False, error='Yetkisiz erişim'), 403
 

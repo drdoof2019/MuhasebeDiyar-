@@ -40,12 +40,6 @@ def seed_admin():
     admin_password = os.environ.get('ADMIN_PASSWORD') or 'admin123'
     admin = User(username='admin', full_name='Yönetici', is_admin=True, is_active=True)
     admin.set_password(admin_password)
-    from models.category import Category
-    from models.financier import Financier
-    from models.payment_method import PaymentMethod
     db.session.add(admin)
     db.session.commit()
-    Category.seed_defaults()
-    Financier.seed_defaults()
-    PaymentMethod.seed_defaults()
-    return 'Admin kullanıcısı ve varsayılan referans verileri olusturuldu.'
+    return 'Admin kullanıcısı olusturuldu.'

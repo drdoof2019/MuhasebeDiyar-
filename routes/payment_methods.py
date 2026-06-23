@@ -15,6 +15,12 @@ def require_admin():
     return None
 
 
+def require_add_transaction():
+    if not current_user.get_permissions().get('can_add_transaction'):
+        return jsonify(success=False, error='Yetkisiz erişim'), 403
+    return None
+
+
 def generate_slug(name):
     tr_map = {'ı': 'i', 'ü': 'u', 'ö': 'o', 'ş': 's', 'ç': 'c', 'ğ': 'g',
               'İ': 'i', 'Ü': 'u', 'Ö': 'o', 'Ş': 's', 'Ç': 'c', 'Ğ': 'g'}
@@ -96,7 +102,7 @@ def list():
 @payment_methods_bp.route('/payment_methods/quick_add', methods=['POST'])
 @login_required
 def quick_add():
-    error = require_admin()
+    error = require_add_transaction()
     if error:
         return jsonify(success=False, error='Yetkisiz erişim'), 403
 
