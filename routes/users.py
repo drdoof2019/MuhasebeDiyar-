@@ -5,6 +5,19 @@ from app import db
 
 users_bp = Blueprint('users', __name__)
 
+ALL_PERMS = [
+    'can_view_transactions',
+    'can_add_transaction',
+    'can_edit_transaction',
+    'can_delete_transaction',
+    'can_view_reports',
+    'can_manage_users',
+]
+
+
+def _is_all_perms(form):
+    return all(p in form for p in ALL_PERMS)
+
 
 def require_admin():
     if not current_user.is_admin:
@@ -54,7 +67,8 @@ def create():
             flash('Bu kullanıcı adı zaten kullanılıyor.', 'danger')
             return render_template('users/create.html')
 
-        user = User(username=username, full_name=full_name, is_admin=False, is_active=True)
+        is_admin = _is_all_perms(request.form)
+        user = User(username=username, full_name=full_name, is_admin=is_admin, is_active=True)
         user.set_password(password)
         db.session.add(user)
         db.session.flush()
@@ -98,13 +112,29 @@ def edit(id):
 
         user.is_active = 'is_active' in request.form
 
-        if user.permissions:
-            user.permissions.can_view_transactions = 'can_view_transactions' in request.form
-            user.permissions.can_add_transaction = 'can_add_transaction' in request.form
-            user.permissions.can_edit_transaction = 'can_edit_transaction' in request.form
-            user.permissions.can_delete_transaction = 'can_delete_transaction' in request.form
-            user.permissions.can_view_reports = 'can_view_reports' in request.form
-            user.permissions.can_manage_users = 'can_manage_users' in request.form
+        is_admin = _is_all_perms(request.form)
+
+        # Prevent demoting the last admin
+        if user.is_admin and not is_admin:
+            from models.user import User as UserModel
+            admin_count = UserModel.query.filter_by(is_admin=True).count()
+            if admin_count <= 1:
+                flash('Son yöneticiyi düşüremezsiniz.', 'danger')
+                return render_template('users/edit.html', user=user)
+
+        user.is_admin = is_admin
+
+        # Ensure Permission row exists (seeded admin may have none)
+        if not user.permissions:
+            user.permissions = Permission(user_id=user.id)
+            db.session.add(user.permissions)
+
+        user.permissions.can_view_transactions = 'can_view_transactions' in request.form
+        user.permissions.can_add_transaction = 'can_add_transaction' in request.form
+        user.permissions.can_edit_transaction = 'can_edit_transaction' in request.form
+        user.permissions.can_delete_transaction = 'can_delete_transaction' in request.form
+        user.permissions.can_view_reports = 'can_view_reports' in request.form
+        user.permissions.can_manage_users = 'can_manage_users' in request.form
 
         db.session.commit()
         flash(f'{user.full_name} güncellendi.', 'success')

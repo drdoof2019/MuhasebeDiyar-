@@ -32,55 +32,52 @@
                         </div>
                     </div>
 
-                    {% if not user.is_admin %}
                     <h6 class="mb-3">Yetkiler</h6>
+                    <p class="text-muted small mb-3">Tüm yetkileri işaretlerseniz kullanıcı <strong>yönetici</strong> olur.</p>
                     <div class="row g-2 mb-4">
                         <div class="col-md-6">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="can_view_transactions" name="can_view_transactions"
-                                       {{ 'checked' if user.permissions and user.permissions.can_view_transactions else '' }}>
+                                       {{ 'checked' if user.is_admin or (user.permissions and user.permissions.can_view_transactions) else '' }}>
                                 <label class="form-check-label" for="can_view_transactions">İşlemleri Görüntüleme</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="can_add_transaction" name="can_add_transaction"
-                                       {{ 'checked' if user.permissions and user.permissions.can_add_transaction else '' }}>
+                                       {{ 'checked' if user.is_admin or (user.permissions and user.permissions.can_add_transaction) else '' }}>
                                 <label class="form-check-label" for="can_add_transaction">İşlem Ekleme</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="can_edit_transaction" name="can_edit_transaction"
-                                       {{ 'checked' if user.permissions and user.permissions.can_edit_transaction else '' }}>
+                                       {{ 'checked' if user.is_admin or (user.permissions and user.permissions.can_edit_transaction) else '' }}>
                                 <label class="form-check-label" for="can_edit_transaction">İşlem Düzenleme</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="can_delete_transaction" name="can_delete_transaction"
-                                       {{ 'checked' if user.permissions and user.permissions.can_delete_transaction else '' }}>
+                                       {{ 'checked' if user.is_admin or (user.permissions and user.permissions.can_delete_transaction) else '' }}>
                                 <label class="form-check-label" for="can_delete_transaction">İşlem Silme</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="can_view_reports" name="can_view_reports"
-                                       {{ 'checked' if user.permissions and user.permissions.can_view_reports else '' }}>
+                                       {{ 'checked' if user.is_admin or (user.permissions and user.permissions.can_view_reports) else '' }}>
                                 <label class="form-check-label" for="can_view_reports">Raporları Görüntüleme</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="can_manage_users" name="can_manage_users"
-                                       {{ 'checked' if user.permissions and user.permissions.can_manage_users else '' }}>
+                                       {{ 'checked' if user.is_admin or (user.permissions and user.permissions.can_manage_users) else '' }}>
                                 <label class="form-check-label" for="can_manage_users">Kullanıcı Yönetimi</label>
                             </div>
                         </div>
                     </div>
-                    {% else %}
-                    <div class="alert alert-info">Yönetici kullanıcısının tüm yetkileri vardır.</div>
-                    {% endif %}
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Güncelle</button>
